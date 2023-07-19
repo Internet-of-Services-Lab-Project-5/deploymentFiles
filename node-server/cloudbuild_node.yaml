@@ -1,0 +1,43 @@
+steps:
+  # Build the Docker image
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["build", "-t", "gcr.io/$PROJECT_ID/node-server", "."]
+
+  # Push the Docker image to Google Container Registry
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "gcr.io/$PROJECT_ID/node-server"]
+
+  # Create a Compute Engine instance
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      [
+        "compute",
+        "instances",
+        "create-with-container",
+        "${_INSTANCE_NAME}",
+        "--machine-type",
+        "${_MACHINE_TYPE}",
+        "--zone",
+        "${_ZONE}",
+        "--container-image",
+        "gcr.io/$PROJECT_ID/node-server:latest",
+        "--private-network-ip",
+        "${_INTERNAL_IP}",
+        "--tags",
+        "allow-3000",
+      ]
+
+  # Create Firewall rule to allow traffic on port 3000
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      [
+        "compute",
+        "firewall-rules",
+        "create",
+        "allow-3000",
+        "--allow",
+        "tcp:3000",
+        "--target-tags",
+        "allow-3000",
+      ]
+    allowFailure: true

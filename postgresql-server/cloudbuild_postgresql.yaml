@@ -1,0 +1,51 @@
+steps:
+  # Build the Docker image
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "build",
+        "--build-arg",
+        "SQL_FILE=airline_a.sql",
+        "-t",
+        "gcr.io/$PROJECT_ID/postgresql-server",
+        ".",
+      ]
+
+  # Push the Docker image to Google Container Registry
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "gcr.io/$PROJECT_ID/postgresql-server"]
+
+  # Create a Compute Engine instance
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      [
+        "compute",
+        "instances",
+        "create-with-container",
+        "${_INSTANCE_NAME}",
+        "--machine-type",
+        "${_MACHINE_TYPE}",
+        "--zone",
+        "${_ZONE}",
+        "--container-image",
+        "gcr.io/$PROJECT_ID/postgresql-server:latest",
+        "--private-network-ip",
+        "${_INTERNAL_IP}",
+        "--tags",
+        "allow-5432",
+      ]
+
+  # Create Firewall rule to allow traffic on port 5432
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      [
+        "compute",
+        "firewall-rules",
+        "create",
+        "allow-5432",
+        "--allow",
+        "tcp:5432",
+        "--target-tags",
+        "allow-5432",
+      ]
+    allowFailure: true
